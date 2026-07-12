@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { getSession } from "@/core/auth/session";
 import { ToastProvider } from "@/components";
 import { Sidebar } from "./_components/sidebar";
+import { CommandPalette } from "./_components/command-palette";
 
 /**
  * Shell for every authenticated screen: fixed left sidebar + scrollable main.
@@ -23,6 +24,7 @@ export default async function AppLayout({
     <ToastProvider>
       <div className="min-h-screen bg-background">
         <Sidebar user={{ name: session.name, role: session.role }} />
+        <CommandPalette />
         <div className="pl-60">
           <main className="mx-auto min-h-screen w-full max-w-7xl px-8 py-8">
             {children}
