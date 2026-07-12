@@ -11,6 +11,7 @@ import {
   Building2,
   CalendarDays,
   ClipboardCheck,
+  Inbox,
   LayoutDashboard,
   LogOut,
   Wrench,
@@ -43,6 +44,12 @@ const NAV_ITEMS: NavItem[] = [
   },
   { label: "Assets", href: "/assets", icon: Boxes },
   { label: "Allocation & Transfer", href: "/allocation", icon: ArrowLeftRight },
+  {
+    label: "Approvals",
+    href: "/approvals",
+    icon: Inbox,
+    roles: ["admin", "asset_manager", "dept_head"],
+  },
   { label: "Resource Booking", href: "/booking", icon: CalendarDays },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },
   // Audit is also shown to any user assigned as an auditor on a cycle — see
@@ -67,6 +74,35 @@ export interface SidebarUser {
   role: UserRole
 }
 
+/**
+ * Live count of pending approvals for the nav badge. Only fetches for the roles
+ * that can see the Approvals inbox; re-fetches on navigation so acting on an
+ * item keeps the badge honest. Read-only — hits the aggregation route.
+ */
+function useApprovalsCount(role: UserRole, pathname: string): number | null {
+  const [count, setCount] = React.useState<number | null>(null)
+  const allowed =
+    role === "admin" || role === "asset_manager" || role === "dept_head"
+
+  React.useEffect(() => {
+    if (!allowed) return
+    let cancelled = false
+    fetch("/api/approvals", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { counts?: { total: number } } | null) => {
+        if (!cancelled && data?.counts) setCount(data.counts.total)
+      })
+      .catch(() => {
+        /* badge is best-effort; ignore failures */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [allowed, pathname])
+
+  return count
+}
+
 /** Humanize a role enum value, e.g. "asset_manager" → "Asset Manager". */
 function formatRole(role: UserRole): string {
   return role
@@ -86,6 +122,7 @@ export function Sidebar({
   const pathname = usePathname()
   const router = useRouter()
   const [signingOut, setSigningOut] = React.useState(false)
+  const approvalsCount = useApprovalsCount(user.role, pathname)
 
   // Defensive: if the session role is missing, treat as least-privileged.
   const visibleItems = NAV_ITEMS.filter((item) => {
@@ -142,6 +179,11 @@ export function Sidebar({
             >
               <Icon />
               {item.label}
+              {item.href === "/approvals" && approvalsCount ? (
+                <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
+                  {approvalsCount}
+                </span>
+              ) : null}
             </Link>
           )
         })}
