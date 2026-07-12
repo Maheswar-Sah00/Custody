@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Upload } from "lucide-react";
+import { Plus, QrCode, Search, Upload } from "lucide-react";
 
 import {
   Button,
@@ -156,18 +157,26 @@ export function AssetsClient({ assets, canRegister }: AssetsClientProps) {
         title="Assets"
         description="Every tracked item in the organization."
         actions={
-          canRegister ? (
-            <>
-              <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <Upload />
-                Import CSV
-              </Button>
-              <Button onClick={() => setRegisterOpen(true)}>
-                <Plus />
-                Register Asset
-              </Button>
-            </>
-          ) : null
+          <>
+            <Button variant="outline" asChild>
+              <Link href="/assets/labels">
+                <QrCode />
+                Print Labels
+              </Link>
+            </Button>
+            {canRegister ? (
+              <>
+                <Button variant="outline" onClick={() => setImportOpen(true)}>
+                  <Upload />
+                  Import CSV
+                </Button>
+                <Button onClick={() => setRegisterOpen(true)}>
+                  <Plus />
+                  Register Asset
+                </Button>
+              </>
+            ) : null}
+          </>
         }
       />
 
