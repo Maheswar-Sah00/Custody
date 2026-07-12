@@ -13,6 +13,7 @@
     "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
     "@radix-ui/react-dialog": "^1.1.19",
     "@radix-ui/react-label": "^2.1.11",
     "@radix-ui/react-select": "^2.3.3",
