@@ -15,6 +15,13 @@
       "when": 1783832846438,
       "tag": "0001_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783832900000,
+      "tag": "0002_asset_attributes",
+      "breakpoints": true
     }
   ]
 }
