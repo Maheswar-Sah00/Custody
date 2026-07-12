@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { getSession } from "@/core/auth/session";
+import { hasRole } from "@/core/rbac";
 import { Button, Card, KpiCard, PageHeader } from "@/components";
 
 import { loadDashboard } from "./_data";
@@ -22,9 +23,8 @@ import { formatActivity } from "./activity-format";
 /**
  * Screen 2 — Dashboard ("Today's Overview"). Server component: it reads the six
  * KPI counts, the overdue set, and the recent-activity feed live from the DB on
- * every request (the same loaders back GET /api/dashboard). The overdue counts
- * come from the read-only overdue helpers, so rendering the dashboard never
- * writes alert notifications.
+ * every request. The overdue counts come from the read-only overdue helpers, so
+ * rendering the dashboard never writes alert notifications.
  */
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,19 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const { kpis, overdue, activity } = await loadDashboard();
+  // Registration is an admin / asset-manager action (see assets/actions.ts),
+  // so the quick action only shows for those roles.
+  const canRegister = hasRole(session, ["admin", "asset_manager"]);
+
+  // Managers see the org-wide activity trail; employees see their own actions.
+  const orgWideActivity = hasRole(session, [
+    "admin",
+    "asset_manager",
+    "dept_head",
+  ]);
+  const { kpis, overdue, activity } = await loadDashboard(
+    orgWideActivity ? undefined : { activityActorId: session.userId },
+  );
 
   return (
     <>
@@ -112,13 +124,15 @@ export default async function DashboardPage() {
 
       {/* Quick actions */}
       <div className="mt-6 flex flex-wrap gap-3">
-        <Button asChild>
-          <Link href="/assets">
-            <Plus />
-            Register Asset
-          </Link>
-        </Button>
-        <Button asChild variant="secondary">
+        {canRegister ? (
+          <Button asChild>
+            <Link href="/assets">
+              <Plus />
+              Register Asset
+            </Link>
+          </Button>
+        ) : null}
+        <Button asChild variant={canRegister ? "secondary" : "default"}>
           <Link href="/booking">
             <CalendarClock />
             Book Resource
@@ -137,14 +151,16 @@ export default async function DashboardPage() {
         <div className="mb-3 flex items-center gap-2">
           <Activity className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            Recent Activity
+            {orgWideActivity ? "Recent Activity" : "Your Recent Activity"}
           </h2>
         </div>
 
         <Card className="divide-y divide-border p-0">
           {activity.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No activity yet.
+              {orgWideActivity
+                ? "No activity yet."
+                : "Nothing yet — your bookings, requests, and returns will show up here."}
             </p>
           ) : (
             activity.map((entry) => {

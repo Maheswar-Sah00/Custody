@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { StatusPill, formatStatusLabel } from "@/components";
+import type { UserRole } from "@/core/db/schema";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -31,8 +32,11 @@ const EMPTY: SearchResults = { assets: [], people: [], resources: [] };
  * Global Cmd+K / Ctrl+K command palette. Searches assets, people, and bookable
  * resources through /api/search (server-side, debounced) and navigates to the
  * relevant screen on select. Mounted once from the app shell.
+ *
+ * People results deep-link to /org, which is admin-only, so that group is
+ * hidden for every other role.
  */
-export function CommandPalette() {
+export function CommandPalette({ role }: { role: UserRole }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -104,8 +108,10 @@ export function CommandPalette() {
     [router],
   );
 
+  const people = role === "admin" ? results.people : [];
+
   const hasResults =
-    results.assets.length + results.people.length + results.resources.length > 0;
+    results.assets.length + people.length + results.resources.length > 0;
 
   return (
     <>
@@ -180,9 +186,9 @@ export function CommandPalette() {
                   </Group>
                 ) : null}
 
-                {results.people.length > 0 ? (
+                {people.length > 0 ? (
                   <Group heading="People">
-                    {results.people.map((p) => (
+                    {people.map((p) => (
                       <Item
                         key={`person-${p.id}`}
                         value={`person-${p.id}-${p.name}`}

@@ -1,7 +1,7 @@
 /**
  * Server-side analytics for the Reports screen. Read-only — one loader,
- * {@link loadReports}, computes every card's data from the live tables and both
- * the page and GET /api/reports consume it.
+ * {@link loadReports}, computes every card's data from the live tables for the
+ * page to consume.
  *
  * Nothing here is a materialized view or a nightly job; the numbers are always
  * current as of the request. Heavier shaping (filling missing months, building

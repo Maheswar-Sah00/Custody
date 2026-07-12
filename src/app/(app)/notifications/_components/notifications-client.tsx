@@ -50,7 +50,12 @@ const CATEGORY_CHIPS = [
   { value: "booking", label: "Bookings" },
 ];
 
-export function NotificationsClient() {
+export function NotificationsClient({
+  showActivityLog,
+}: {
+  /** Activity log is a compliance view — admins and asset managers only. */
+  showActivityLog: boolean;
+}) {
   const [view, setView] = React.useState<"notifications" | "activity">(
     "notifications",
   );
@@ -59,26 +64,32 @@ export function NotificationsClient() {
   return (
     <>
       <PageHeader
-        title="Notifications & activity"
-        description="Your alerts and the organization's audit trail."
+        title={showActivityLog ? "Notifications & activity" : "Notifications"}
+        description={
+          showActivityLog
+            ? "Your alerts and the organization's audit trail."
+            : "Your alerts, approvals, and booking updates."
+        }
       />
 
-      <Tabs
-        items={[
-          {
-            value: "notifications",
-            label: "Notifications",
-            count: unreadCount || undefined,
-          },
-          { value: "activity", label: "Activity log" },
-        ]}
-        value={view}
-        onValueChange={(v) => setView(v as typeof view)}
-        aria-label="Notifications views"
-      />
+      {showActivityLog ? (
+        <Tabs
+          items={[
+            {
+              value: "notifications",
+              label: "Notifications",
+              count: unreadCount || undefined,
+            },
+            { value: "activity", label: "Activity log" },
+          ]}
+          value={view}
+          onValueChange={(v) => setView(v as typeof view)}
+          aria-label="Notifications views"
+        />
+      ) : null}
 
       <div className="mt-6">
-        {view === "notifications" ? (
+        {view === "notifications" || !showActivityLog ? (
           <NotificationsView onUnreadChange={setUnreadCount} />
         ) : (
           <ActivityView />
