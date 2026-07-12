@@ -126,7 +126,7 @@ async function main() {
       { name: "Priya Shah", email: "priya.shah@assetflow.com", passwordHash: userHash, role: "employee", departmentId: engineering.id },
       { name: "Raj", email: "raj@assetflow.com", passwordHash: userHash, role: "employee", departmentId: engineering.id },
       { name: "Neha Kulkarni", email: "neha.kulkarni@assetflow.com", passwordHash: userHash, role: "employee", departmentId: engineering.id },
-      { name: "Arjun Singh", email: "arjun.singh@assetflow.com", passwordHash: userHash, role: "employee", departmentId: facilities.id },
+      { name: "Arjun Nair", email: "arjun.nair@assetflow.com", passwordHash: userHash, role: "employee", departmentId: facilities.id },
       { name: "Meera Joshi", email: "meera.joshi@assetflow.com", passwordHash: userHash, role: "employee", departmentId: fieldOps.id },
       { name: "Karan Patel", email: "karan.patel@assetflow.com", passwordHash: userHash, role: "employee", departmentId: fieldOps.id },
       { name: "Divya Menon", email: "divya.menon@assetflow.com", passwordHash: userHash, role: "employee", departmentId: facilities.id },
@@ -190,7 +190,10 @@ async function main() {
     A("AF-0006", "iPad Pro 12.9", electronics.id, { serialNumber: "IPP-90112", acquisitionCost: "1099.00" }),
     A("AF-0007", "iPhone 15", electronics.id, { serialNumber: "IP15-33321", acquisitionCost: "799.00" }),
     A("AF-0008", "Samsung Galaxy S24", electronics.id, { serialNumber: "SGS24-1187", acquisitionCost: "749.00" }),
-    A("AF-0009", "HP LaserJet Pro M404", electronics.id, { serialNumber: "HPLJ-40417", acquisitionCost: "329.00", location: "HQ — Print Room" }),
+    A("AF-0009", "HP LaserJet Pro M404", electronics.id, {
+      serialNumber: "HPLJ-40417", acquisitionCost: "329.00", location: "HQ — Print Room",
+      status: "under_maintenance", condition: "needs repair",
+    }),
     A("AF-0010", "Canon imageRUNNER 2630", electronics.id, { serialNumber: "CIR-26302", acquisitionCost: "2150.00", location: "HQ — Print Room" }),
     A("AF-0011", "Logitech Rally Camera", electronics.id, { serialNumber: "LRC-8810", acquisitionCost: "1299.00", location: "HQ — Conference Room A1" }),
     A("AF-0012", "Poly Studio X50", electronics.id, { serialNumber: "PSX50-412", acquisitionCost: "2199.00", location: "HQ — Conference Room B2" }),
@@ -338,11 +341,19 @@ async function main() {
 
   /* ------------------------- maintenance requests ------------------------ */
 
-  const [projectorMaint] = await db
+  // One request in each of the five kanban columns so the board is full:
+  // Pending · Approved · Technician Assigned · In Progress · Resolved.
+  const [
+    projectorMaint,
+    ,
+    ,
+    printerMaint,
+    resolvedMaint,
+  ] = await db
     .insert(maintenanceRequests)
     .values([
       {
-        // Projector AF-0062 is under_maintenance (mockup).
+        // In Progress — Projector AF-0062 is under_maintenance (mockup).
         assetId: asset("AF-0062").id,
         raisedBy: rohan.id,
         issue: "Lamp flickers and shuts off after ~10 minutes of use.",
@@ -353,6 +364,7 @@ async function main() {
         createdAt: daysAgo(5),
       },
       {
+        // Technician Assigned — mini truck booked in with an external garage.
         assetId: asset("AF-0054").id,
         raisedBy: meera.id,
         issue: "Clutch slipping; needs service before next warehouse run.",
@@ -363,12 +375,34 @@ async function main() {
         createdAt: daysAgo(8),
       },
       {
+        // Pending — freshly raised, awaiting a manager decision.
         assetId: asset("AF-0039").id,
         raisedBy: karan.id,
         issue: "Front-left castor broken; chair unusable.",
         priority: "low",
         status: "pending",
         createdAt: daysAgo(1),
+      },
+      {
+        // Approved — signed off, awaiting a technician. AF-0009 is under_maintenance.
+        assetId: asset("AF-0009").id,
+        raisedBy: divya.id,
+        issue: "Paper feed jams on every job; roller likely worn.",
+        priority: "medium",
+        status: "approved",
+        decidedBy: vikram.id,
+        createdAt: daysAgo(3),
+      },
+      {
+        // Resolved — closed out last month; asset already back to available.
+        assetId: asset("AF-0032").id,
+        raisedBy: neha.id,
+        issue: "Gas lift sinking under load; seat won't hold height.",
+        priority: "low",
+        status: "resolved",
+        technicianName: "Ergo Service Co.",
+        decidedBy: vikram.id,
+        createdAt: daysAgo(28),
       },
     ])
     .returning();
@@ -452,7 +486,7 @@ async function main() {
     {
       userId: aditi.id,
       category: "approval",
-      message: "Transfer request: Raj → Arjun Singh for AF-0021 (Dell Latitude 5440) awaits your decision.",
+      message: "Transfer request: Raj → Arjun Nair for AF-0021 (Dell Latitude 5440) awaits your decision.",
       entityRef: `transfer_request:${transferReq.id}`,
     },
     {
@@ -466,6 +500,20 @@ async function main() {
       category: "alert",
       message: "Epson EB-X51 Projector (AF-0062) is under maintenance — technician Suresh Kumar assigned.",
       entityRef: `maintenance_request:${projectorMaint.id}`,
+    },
+    {
+      userId: divya.id,
+      category: "approval",
+      message: "Your maintenance request for HP LaserJet Pro M404 (AF-0009) was approved and is awaiting a technician.",
+      entityRef: `maintenance_request:${printerMaint.id}`,
+    },
+    {
+      userId: neha.id,
+      category: "approval",
+      message: "Resolved: Herman Miller Aeron Chair (AF-0032) is back in service after a gas-lift replacement.",
+      entityRef: `maintenance_request:${resolvedMaint.id}`,
+      createdAt: daysAgo(20),
+      readAt: daysAgo(19),
     },
   ]);
 
@@ -519,13 +567,49 @@ async function main() {
       action: "transfer.requested",
       entityType: "transfer_request",
       entityId: transferReq.id,
-      after: { asset: "AF-0021", to: "Arjun Singh" },
+      after: { asset: "AF-0021", to: "Arjun Nair" },
       createdAt: daysAgo(2),
+    },
+    {
+      actorId: vikram.id,
+      action: "maintenance.approved",
+      entityType: "maintenance_request",
+      entityId: printerMaint.id,
+      before: { status: "pending" },
+      after: { status: "approved", asset: "AF-0009" },
+      createdAt: daysAgo(3),
+    },
+    {
+      actorId: vikram.id,
+      action: "asset.status_changed",
+      entityType: "asset",
+      entityId: asset("AF-0009").id,
+      before: { status: "available" },
+      after: { status: "under_maintenance", reason: "maintenance" },
+      createdAt: daysAgo(3),
+    },
+    {
+      actorId: vikram.id,
+      action: "maintenance.resolved",
+      entityType: "maintenance_request",
+      entityId: resolvedMaint.id,
+      before: { status: "in_progress" },
+      after: { status: "resolved", asset: "AF-0032" },
+      createdAt: daysAgo(20),
+    },
+    {
+      actorId: vikram.id,
+      action: "asset.status_changed",
+      entityType: "asset",
+      entityId: asset("AF-0032").id,
+      before: { status: "under_maintenance" },
+      after: { status: "available", reason: "maintenance" },
+      createdAt: daysAgo(20),
     },
   ]);
 
   console.log(`  departments: 3, users: 13, categories: 3, assets: ${insertedAssets.length}`);
-  console.log("  allocations: 4 (1 overdue), bookings: 3, maintenance: 3, transfers: 2");
+  console.log("  allocations: 4 (1 overdue), bookings: 3, maintenance: 5 (all columns), transfers: 2");
   console.log(`  state transitions: ${ASSET_STATE_TRANSITIONS.length}, plus notifications & activity logs`);
   console.log("Done. Login: admin@assetflow.com / admin123 (others: password123)");
 }
