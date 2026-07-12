@@ -5,9 +5,6 @@
  *   - six headline KPI counts (see {@link loadDashboardKpis}),
  *   - the current overdue set (via the core overdue read helpers — no writes),
  *   - a short "recent activity" feed off the shared activity log.
- *
- * The same loaders back both the server component (which renders them directly)
- * and GET /api/dashboard, so the numbers can never drift between the two.
  */
 import "server-only";
 
@@ -173,9 +170,15 @@ export async function loadDashboardOverdue(): Promise<DashboardOverdue> {
 /*  Recent activity feed                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** The last `limit` activity-log entries, newest first, joined to the actor. */
+/**
+ * The last `limit` activity-log entries, newest first, joined to the actor.
+ * Pass `actorId` to scope the feed to one user's own actions — the dashboard
+ * does this for employees, who get "your activity" instead of the org-wide
+ * trail.
+ */
 export async function loadRecentActivity(
   limit = 5,
+  actorId?: number,
 ): Promise<RecentActivityEntry[]> {
   const rows = await db
     .select({
@@ -190,6 +193,7 @@ export async function loadRecentActivity(
     })
     .from(activityLogs)
     .leftJoin(users, eq(users.id, activityLogs.actorId))
+    .where(actorId === undefined ? undefined : eq(activityLogs.actorId, actorId))
     .orderBy(desc(activityLogs.createdAt))
     .limit(limit);
 
@@ -209,11 +213,14 @@ export async function loadRecentActivity(
 /*  Everything at once                                                        */
 /* -------------------------------------------------------------------------- */
 
-export async function loadDashboard(): Promise<DashboardData> {
+export async function loadDashboard(options?: {
+  /** Scope the activity feed to this actor (used for employee sessions). */
+  activityActorId?: number;
+}): Promise<DashboardData> {
   const [kpis, overdue, activity] = await Promise.all([
     loadDashboardKpis(),
     loadDashboardOverdue(),
-    loadRecentActivity(5),
+    loadRecentActivity(5, options?.activityActorId),
   ]);
   return { kpis, overdue, activity };
 }

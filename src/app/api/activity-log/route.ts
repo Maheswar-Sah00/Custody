@@ -5,13 +5,14 @@ import { getSession } from "@/core/auth/session";
 import { db } from "@/core/db";
 import { activityLogs, users } from "@/core/db/schema";
 import { toErrorResponse } from "@/core/errors";
-import { requireSession } from "@/core/rbac";
+import { requireRole } from "@/core/rbac";
 
 /**
  * GET /api/activity-log
  *
- * The "who did what when" audit trail. Newest first, joined to the actor's
- * name. Optional filters: ?entityType=asset  ?action=asset.allocated
+ * The "who did what when" audit trail — a compliance tool, so it is limited to
+ * admins and asset managers. Newest first, joined to the actor's name.
+ * Optional filters: ?entityType=asset  ?action=asset.allocated
  * ?actorId=4  ?limit=100 (default 50, max 200). A null actor means a
  * system-initiated action (e.g. the overdue engine).
  */
@@ -22,7 +23,7 @@ const MAX_LIMIT = 200;
 
 export async function GET(request: NextRequest) {
   try {
-    requireSession(await getSession());
+    requireRole(await getSession(), ["admin", "asset_manager"]);
 
     const sp = request.nextUrl.searchParams;
     const entityType = sp.get("entityType");

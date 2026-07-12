@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation"
 
+import { eq } from "drizzle-orm";
+
 import { getSession } from "@/core/auth/session";
+import { db } from "@/core/db";
+import { auditCycleAuditors } from "@/core/db/schema";
 import { ToastProvider } from "@/components";
 import { Sidebar } from "./_components/sidebar";
 import { CommandPalette } from "./_components/command-palette";
@@ -20,11 +24,28 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  // Admins and asset managers always see Audit; for everyone else the item
+  // only appears when they are assigned as an auditor on a cycle.
+  const seesAuditAnyway =
+    session.role === "admin" || session.role === "asset_manager";
+  const isAuditor = seesAuditAnyway
+    ? false
+    : (
+        await db
+          .select({ cycleId: auditCycleAuditors.cycleId })
+          .from(auditCycleAuditors)
+          .where(eq(auditCycleAuditors.userId, session.userId))
+          .limit(1)
+      ).length > 0;
+
   return (
     <ToastProvider>
       <div className="min-h-screen bg-background">
-        <Sidebar user={{ name: session.name, role: session.role }} />
-        <CommandPalette />
+        <Sidebar
+          user={{ name: session.name, role: session.role }}
+          isAuditor={isAuditor}
+        />
+        <CommandPalette role={session.role} />
         <div className="pl-60">
           <main className="mx-auto min-h-screen w-full max-w-7xl px-8 py-8">
             {children}

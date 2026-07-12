@@ -45,8 +45,20 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Allocation & Transfer", href: "/allocation", icon: ArrowLeftRight },
   { label: "Resource Booking", href: "/booking", icon: CalendarDays },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },
-  { label: "Audit", href: "/audit", icon: ClipboardCheck },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
+  // Audit is also shown to any user assigned as an auditor on a cycle — see
+  // the isAuditor escape hatch in the filter below.
+  {
+    label: "Audit",
+    href: "/audit",
+    icon: ClipboardCheck,
+    roles: ["admin", "asset_manager"],
+  },
+  {
+    label: "Reports",
+    href: "/reports",
+    icon: BarChart3,
+    roles: ["admin", "asset_manager", "dept_head"],
+  },
   { label: "Notifications", href: "/notifications", icon: Bell },
 ]
 
@@ -63,15 +75,26 @@ function formatRole(role: UserRole): string {
     .join(" ")
 }
 
-export function Sidebar({ user }: { user: SidebarUser }) {
+export function Sidebar({
+  user,
+  isAuditor = false,
+}: {
+  user: SidebarUser
+  /** True when this user is assigned as an auditor on at least one cycle. */
+  isAuditor?: boolean
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const [signingOut, setSigningOut] = React.useState(false)
 
   // Defensive: if the session role is missing, treat as least-privileged.
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.roles || (user.role && item.roles.includes(user.role))
-  )
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (!item.roles || (user.role && item.roles.includes(user.role))) {
+      return true
+    }
+    // Audit is role-gated but also open to assigned auditors of any role.
+    return item.href === "/audit" && isAuditor
+  })
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`)
