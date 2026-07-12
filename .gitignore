@@ -35,3 +35,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Locally uploaded asset photos
+/public/uploads/*
+!/public/uploads/.gitkeep
